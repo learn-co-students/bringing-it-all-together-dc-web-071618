@@ -4,16 +4,14 @@ class Dog
 
   attr_accessor :name, :breed, :id
 
-  def initialize(name:, breed:, id: nil)
-    @name = name
-    @breed = breed
-    @id = id
+  def initialize(props = {})
+    @name = props[:name]
+    @breed = props[:breed]
   end
 
   def self.create(dog_hash)
-    new_dog = self.new(name: dog_hash[:name], breed: dog_hash[:breed])
+    new_dog = self.new(dog_hash)
     new_dog.save
-    new_dog
   end
 
   def self.drop_table
@@ -35,7 +33,7 @@ class Dog
   end
 
   def self.new_from_db(dogos)
-    new_dog = self.new(id:dogos[0], name:dogos[1], breed:dogos[2])
+    new_dog = self.new({name:dogos[1], breed:dogos[2]})
     new_dog.id = dogos[0]
     new_dog
     # binding.pry
@@ -55,17 +53,16 @@ class Dog
 
   def self.find_or_create_by(dog_hash)
     sql = <<-SQL
-      SELECT * FROM dogs WHERE breed = ? AND name = ?
+      SELECT * FROM dogs WHERE name = ?, breed = ?
       SQL
-      has_dog = DB[:conn].execute(sql, dog_hash[:breed], dog_hash[:name])
-      if has_dog[0].class == Array
-        dog_data = has_dog[0]
-        song = Dog.new(id: dog_data[0], name: dog_data[1], breed: dog_data[2])
-        # self.new_from_db(has_dog[0])
+      has_dog = DB[:conn].execute(sql, dog_hash[:name], dog_hash[:breed])
+      # binding.pry
+      # puts nil
+      if !has_dog.empty?
+        self.new_from_db(has_dog[0])
       else
-        song = self.create(dog_hash)
+        self.create(dog_hash)
       end
-      song
   end
 
   def self.find_by_id(dog_id)
@@ -90,7 +87,7 @@ class Dog
         INSERT INTO dogs (name, breed) VALUES (?, ?)
         SQL
         DB[:conn].execute(sql, self.name, self.breed)
-        @id = DB[:conn].execute("SELECT last_insert_rowid() FROM dogs")[0][0]
+        @id = DB[:conn].execute("SELECT id FROM dogs WHERE last_insert_rowid()")[0][0]
         self
     else
       self.update
